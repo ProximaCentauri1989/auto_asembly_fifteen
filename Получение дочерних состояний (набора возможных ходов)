@@ -1,0 +1,37 @@
+/*-------------Заполнить вектор дочерних состояния текущего поля-------------*/
+void Field::GetChildren(vector<Field>& list)
+{
+	unsigned int i, k, zeroIndex;
+
+	//Вычислить индекс нулевого поля
+	for (int i = 0; i < MAP_SIZE; i++)
+		if (this->state[i] == 0)
+		{
+			zeroIndex = i;
+			break;
+		}
+
+	//Возможные направления
+	int directions[] = { -4, +4, -1, +1 };
+
+	//Проверить ходы из четырых направлений на корректность и зафиксировать их
+	for (i = 0; i < MAP_SIZE / 4; i++)
+	{
+		k = zeroIndex + directions[i];
+    //Отсечение некорректных ходов
+		if (k < 0 || k >= MAP_SIZE)
+			continue;
+		if ((directions[i] == 1) && ((zeroIndex + 1) % directions[1] == 0)) 
+			continue;
+		if ((directions[i] == -1) && ((zeroIndex + 1) % directions[1] == 1))
+			continue;
+    
+    //Если ход корректен получить соответсвующее ему дочернее состояние и получить: его вес и его эвристическую оценку
+		Field child(*this);
+		child.SetMove(this->GetMove() + 1);
+		swap(child.state[zeroIndex], child.state[k]);
+		child.ManhatenDistance();
+		child.SetF(child.GetMove() + child.GetDisance());
+		list.push_back(child);
+	}
+}
