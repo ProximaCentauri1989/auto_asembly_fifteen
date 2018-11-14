@@ -12,7 +12,7 @@ void GetRandomField(int*& fieldState, int& hideButtIndex)
 	} while (!IsWinPossible(fieldState)); 
 }
 
-//Функция для генерирации новый массива неповторяющихся значений
+//Функция для генерирации массива неповторяющихся значений
 void GenerateMas(INT* mas, INT& hideInd)
 {
 	INT i = 0, j, tmp;
