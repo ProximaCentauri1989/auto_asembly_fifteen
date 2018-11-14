@@ -1,0 +1,165 @@
+//Способ генерации состояния игрового поля на основе n сдвигов от терминального.
+//field - массив отражающий состояние игрового поля
+hideButton - индекс, который будет соответствовать скрываемой в дальнейшем клете (клетка, которая содержит 0)
+
+void GetShuffleField(int*& field, int& hideButton)
+{
+	//1. Переменные/обьекты
+	int mas[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0 }; //терминальное состояние поле
+	vector<int*> list; //список предыдущих состояний полей (для того чтобы при сдвиге не было зацикливаний)
+	int nShuf = 80; //количество сдвигов
+  int i; //счетчик для цикла прохода по массиву
+
+	//1. Сделать поле терминальным
+	copy(&mas[0], &mas[MAP_SIZE], field);
+
+	//2. Выполнить nShuff сдвигов от терминального состояния поля, попутно сохраняя предыдущие состояния полей перед сдвигом
+	FieldShuffle(field, nShuf, list);
+
+	//3. Зафиксировать позицию нуля
+	for(i = 0; i < MAP_SIZE; i++)
+		if (!field[i])
+		{
+			hideButton = i;
+			break;
+		}
+
+	//4. Освободить память, выделенную под предыдущие состояния полей
+	for (auto x : list)
+		delete[] x;
+}
+
+//Рекурсивная функция сдвига (уход от терминального состояния путем n неповторяющихся ходов)
+//field - текущее состояние
+//n - количество сдвигов
+//closeFields - список уже выполненных ходов
+//
+void FieldShuffle(int*& field, int n, vector<int*>& closeFields)
+{
+  //Осуществить возвраты если счетчик достиг нуля
+	if (n == 0)
+		return;
+
+	int i, j, k, tmp, zeroIndex;
+	vector<int> moveIndexes;
+	bool bMoveFromUnder, bMoveFromRight, bMoveFromAbove, bMoveFromLeft;
+
+	/*-----Сохранить текущее состояние------*/
+	int* tmpFieldSave;
+	Allocation(tmpFieldSave, MAP_SIZE); //выделить память
+	copy(&field[0], &field[MAP_SIZE], tmpFieldSave); //скопировать field в tmpFieldSave
+	closeFields.push_back(tmpFieldSave); //положить в вектор
+  
+	/*-----Определить индекс элемента массива, который равен нулю-----*/
+	for (i = 0; i < MAP_SIZE; ++i)
+		if (field[i] == 0)
+		{
+			zeroIndex = i;
+			break;
+		}
+    
+	/*----Проверить возможность хода со всех четырех направлений----*/
+	int* tmpFieldShuff;
+	Allocation(tmpFieldShuff, MAP_SIZE);
+
+  switch (zeroIndex)
+	{
+	case 0:
+							bMoveFromUnder = TRUE; //ход снизу на пустую клетку возможен
+							bMoveFromRight = TRUE; //ход справа на пустую клетку возможен
+							bMoveFromAbove = FALSE; //ход сверху на пустую клетку невозможен (выход на пределы поля)
+							bMoveFromLeft = FALSE; //ход слева на пустую клетку невозможен (выход на пределы поля)
+							break;
+	case 1: case 2:
+							bMoveFromUnder = TRUE;
+							bMoveFromRight = TRUE;
+							bMoveFromAbove = FALSE;
+							bMoveFromLeft = TRUE;
+							break;
+	case 3:
+							bMoveFromUnder = TRUE;
+							bMoveFromRight = FALSE;
+							bMoveFromAbove = FALSE;
+							bMoveFromLeft = TRUE;
+							break;
+	case 4: case 8:
+							bMoveFromUnder = TRUE;
+							bMoveFromRight = TRUE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = FALSE;
+							break;
+	case 5: case 6: case 9: case 10:
+							bMoveFromUnder = TRUE;
+							bMoveFromRight = TRUE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = TRUE;
+							break;
+	case 7: case 11:
+							bMoveFromUnder = TRUE;
+							bMoveFromRight = FALSE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = TRUE;
+							break;
+	case 12:
+							bMoveFromUnder = FALSE;
+							bMoveFromRight = TRUE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = FALSE;
+							break;
+	case 13: case 14:
+							bMoveFromUnder = FALSE;
+							bMoveFromRight = TRUE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = TRUE;
+							break;
+	case 15:
+							bMoveFromUnder = FALSE;
+							bMoveFromRight = FALSE;
+							bMoveFromAbove = TRUE;
+							bMoveFromLeft = TRUE;
+							break;
+	}
+  
+  /*Получить состояния полей, которые могут быть получены в результате совершения корректных ходов, 
+    проверить не встречались ли такие состояния ранее и зафиксировать индексы клеток, с которых должны быть 
+    выполы ходы для получения соответствующих состояний*/
+  if(bMoveFromUnder)
+    {
+      copy(&field[0], &field[MAP_SIZE], tmpFieldShuff); 
+      swap(tmpFieldShuff[zeroIndex + 4], tmpFieldShuff[zeroIndex]); 
+      if (!IsListContain(tmpFieldShuff, closeFields))
+			  moveIndexes.push_back(zeroIndex + 4); 
+    }
+   if(bMoveFromRight)
+   {
+     copy(&field[0], &field[MAP_SIZE], tmpFieldShuff);
+     swap(tmpFieldShuff[zeroIndex + 1], tmpFieldShuff[zeroIndex]);
+     if (!IsListContain(tmpFieldShuff, closeFields))
+		    moveIndexes.push_back(zeroIndex + 1);
+   }
+   if(bMoveFromAbove)
+   {
+     copy(&field[0], &field[MAP_SIZE], tmpFieldShuff);
+     swap(tmpFieldShuff[zeroIndex - 4], tmpFieldShuff[zeroIndex]);
+     if (!IsListContain(tmpFieldShuff, closeFields))
+		    moveIndexes.push_back(zeroIndex - 4);
+   }
+   if(bMoveFromLeft)
+   {
+     copy(&field[0], &field[MAP_SIZE], tmpFieldShuff);
+     swap(tmpFieldShuff[zeroIndex - 1], tmpFieldShuff[zeroIndex]);
+     if (!IsListContain(tmpFieldShuff, closeFields))
+		    moveIndexes.push_back(zeroIndex - 1);
+   }
+  
+  //Освободить память выделенную под временный массив tmpFieldShuff
+	if (tmpFieldShuff)
+		delete[] tmpFieldShuff;
+    
+	/*--------Выбрать один из возможных ходов случайно---------*/
+	tmp = rand() % indexes.size();
+	swap(field[moveIndexes[tmp]], field[zeroIndex]);
+
+	/*-------------------Получить следующий сдвиг-----------------*/
+	return FieldShuffle(field, --n, closeFields);
+}
