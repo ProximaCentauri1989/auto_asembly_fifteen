@@ -65,59 +65,59 @@ void FieldShuffle(int*& field, int n, vector<int*>& closeFields)
   switch (zeroIndex)
 	{
 	case 0:
-							bMoveFromUnder = TRUE; //ход снизу на пустую клетку возможен
-							bMoveFromRight = TRUE; //ход справа на пустую клетку возможен
-							bMoveFromAbove = FALSE; //ход сверху на пустую клетку невозможен (выход на пределы поля)
-							bMoveFromLeft = FALSE; //ход слева на пустую клетку невозможен (выход на пределы поля)
-							break;
+		bMoveFromUnder = TRUE; //ход снизу на пустую клетку возможен
+		bMoveFromRight = TRUE; //ход справа на пустую клетку возможен
+		bMoveFromAbove = FALSE; //ход сверху на пустую клетку невозможен (выход на пределы поля)
+		bMoveFromLeft = FALSE; //ход слева на пустую клетку невозможен (выход на пределы поля)
+		break;
 	case 1: case 2:
-							bMoveFromUnder = TRUE;
-							bMoveFromRight = TRUE;
-							bMoveFromAbove = FALSE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = TRUE;
+		bMoveFromRight = TRUE;
+		bMoveFromAbove = FALSE;
+		bMoveFromLeft = TRUE;
+		break;
 	case 3:
-							bMoveFromUnder = TRUE;
-							bMoveFromRight = FALSE;
-							bMoveFromAbove = FALSE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = TRUE;
+		bMoveFromRight = FALSE;
+		bMoveFromAbove = FALSE;
+		bMoveFromLeft = TRUE;
+		break;
 	case 4: case 8:
-							bMoveFromUnder = TRUE;
-							bMoveFromRight = TRUE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = FALSE;
-							break;
+		bMoveFromUnder = TRUE;
+		bMoveFromRight = TRUE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = FALSE;
+		break;
 	case 5: case 6: case 9: case 10:
-							bMoveFromUnder = TRUE;
-							bMoveFromRight = TRUE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = TRUE;
+		bMoveFromRight = TRUE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = TRUE;
+		break;
 	case 7: case 11:
-							bMoveFromUnder = TRUE;
-							bMoveFromRight = FALSE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = TRUE;
+		bMoveFromRight = FALSE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = TRUE;
+		break;
 	case 12:
-							bMoveFromUnder = FALSE;
-							bMoveFromRight = TRUE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = FALSE;
-							break;
+		bMoveFromUnder = FALSE;
+		bMoveFromRight = TRUE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = FALSE;
+		break;
 	case 13: case 14:
-							bMoveFromUnder = FALSE;
-							bMoveFromRight = TRUE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = FALSE;
+		bMoveFromRight = TRUE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = TRUE;
+		break;
 	case 15:
-							bMoveFromUnder = FALSE;
-							bMoveFromRight = FALSE;
-							bMoveFromAbove = TRUE;
-							bMoveFromLeft = TRUE;
-							break;
+		bMoveFromUnder = FALSE;
+		bMoveFromRight = FALSE;
+		bMoveFromAbove = TRUE;
+		bMoveFromLeft = TRUE;
+		break;
 	}
   
   /*Получить состояния полей, которые могут быть получены в результате совершения корректных ходов, 
@@ -153,13 +153,13 @@ void FieldShuffle(int*& field, int n, vector<int*>& closeFields)
    }
   
   //Освободить память выделенную под временный массив tmpFieldShuff
-	if (tmpFieldShuff)
-		delete[] tmpFieldShuff;
+  if (tmpFieldShuff)
+	delete[] tmpFieldShuff;
     
-	/*--------Выбрать один из возможных ходов случайно---------*/
-	tmp = rand() % indexes.size();
-	swap(field[moveIndexes[tmp]], field[zeroIndex]);
+  /*--------Выбрать один из возможных ходов случайно---------*/
+  tmp = rand() % indexes.size();
+  swap(field[moveIndexes[tmp]], field[zeroIndex]);
 
-	/*-------------------Получить следующий сдвиг-----------------*/
-	return FieldShuffle(field, --n, closeFields);
+  /*-------------------Получить следующий сдвиг-----------------*/
+  return FieldShuffle(field, --n, closeFields);
 }
