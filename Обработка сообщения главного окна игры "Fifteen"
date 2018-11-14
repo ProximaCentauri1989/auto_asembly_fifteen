@@ -1,0 +1,442 @@
+LRESULT CALLBACK WFunc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	//Хендлер контекста экрана и структура с информацией о рисовании
+	HDC hDC;
+	PAINTSTRUCT ps;   
+
+	//Структура с информацией о кнопке (для WM_OWNERDRAW)
+	LPDRAWITEMSTRUCT buttDraw; 
+
+	//Цвета для контролов
+	static COLORREF textClr, textClrBtn, statBkgrndClr;
+	static COLORREF buttBkgrndTop, buttBkgrndBottom;
+	static HBRUSH hbrUsual, hbrPushed, hbrRound, hbr;
+
+	//Хендлеры курсоров
+	static HCURSOR cursorDown, cursorUp, cursorLeft, cursorRight, cursorOnButtonUsual, cursorOnButtonPushed;
+
+	//Хендлеры шрифтов
+	static HFONT h_font, h_font2;
+
+	//Массив направлений
+	static INT directions[] = { -4, +4, -1, +1 };
+
+	//Вспомогательные переменные (счетчики/индексы и т.д.)
+	INT i, j, zeroIndex;
+	static INT numb;  //номер нажатой кнопки (кнопки над которой курсор)
+	static INT hideButtonIndex; //индекс скрываемой кнопки
+	static INT moveCounter = 0; //Счетчик ходов
+
+	//Ширина и высота окна
+	static LONG SX, SY;      
+
+	//Флаги: пусто под кнопкой, над кнопкой, слева или справа от кнопки
+	static BOOL bEmptyUnder, bEmptyAbove, bEmptyRight, bEmptyLeft;
+
+	//Массив хендлеров кнопок, хендлеры для статиков (время, количество ходов)
+	static HWND hButt[16], hMoveStat;
+
+	//Целочисленный массив для пятнашек 
+	static int* field;
+
+	//Кисти для рисования коробки пятнашек
+	static HPEN hPenRound, hPenBox;
+	static BOOL	bAuto, bZero;
+
+	switch (message)
+	{
+	case WM_CREATE:
+		srand((unsigned int)time(NULL));
+
+		//Цвета и кисти создаваемые однократно (статические цвета)
+		hPenBox = CreatePen(PS_SOLID, BOX_RORDER_EDGE, RGB(0, 0, 0));
+		buttBkgrndTop = RGB(249, 249, 206);
+		buttBkgrndBottom = RGB(196, 191, 118);
+		textClr = RGB(8, 34, 40);
+		statBkgrndClr = RGB(240, 80, 93);
+		hPenRound = CreatePen(PS_SOLID, 1, RGB(180, 178, 105));
+
+		//Создать перерисовываемые кнопки
+		for (i = 0; i < BUTTONS_AMOUNT; ++i)
+			hButt[i] = CreateWindow("BUTTON", "", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW /*| BS_PUSHBUTTON*/, 0, 0, 0, 0, hWnd, NULL, hInst, NULL);
+
+		//Создать набор курсоров
+		cursorOnButtonUsual = LoadCursor(hInst, (TCHAR*)IDC_CURSOR8);
+		cursorOnButtonPushed = LoadCursor(hInst, (TCHAR*)IDC_CURSOR9);
+		cursorDown = LoadCursor(hInst, (TCHAR*)IDC_CURSOR10);
+		cursorUp = LoadCursor(hInst, (TCHAR*)IDC_CURSOR13);
+		cursorLeft = LoadCursor(hInst, (TCHAR*)IDC_CURSOR11);
+		cursorRight = LoadCursor(hInst, (TCHAR*)IDC_CURSOR12);
+
+		//Создать STATIC-и для вывода количества ходов
+		hMoveStat = CreateWindow("STATIC", "", WS_CHILD | WS_VISIBLE | SS_CENTER, 0, 0, 0, 0, hWnd, NULL, hInst, NULL);
+
+		//Сгенерировать неповторяющийся массив для пятнашек
+		Allocation(field, MAP_SIZE);
+		/*GetShuffleField(field, hideButtonIndex); //генерация путем неповторяющихся сдвигов от состояния терминального поля 
+		GetRandomField(field, hideButtonIndex); //генерация массива неповторяющихся значений с проверкой на собираемость
+
+		//Добавить шрифты на время работы программы
+		//1. Шрифт для костяшек
+		if (AddFontResourceEx("GeoC.ttf", FR_PRIVATE, NULL) != 0)
+			SendMessage(HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+		//2. Шрифт для количества ходов
+		if (AddFontResourceEx("Moves.otf", FR_PRIVATE, NULL) != 0)
+			SendMessage(HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+		break;
+    
+	case WM_SIZE:
+		//Получить ширину и высоту клиентской области
+		SX = LOWORD(lParam);
+		SY = HIWORD(lParam);
+
+		//Создать шрифт
+		h_font = CreateFont(SY/10, -SY/20, 0, 0, FW_MEDIUM, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
+				CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, "GeoC");
+
+		//Для всех кнопок установить полученный шрифт
+		for (i = 0; i < BUTTONS_AMOUNT; i++)
+			SendMessage(hButt[i], WM_SETFONT, (WPARAM)h_font, TRUE);
+
+		//Создать шрифт для статиков и установить его
+		h_font2 = CreateFont(26, -13, 0, 0, FW_HEAVY, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
+			CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, "Daneehand Regular");
+		SendMessage(hMoveStat, WM_SETFONT, (WPARAM)h_font2, TRUE);
+
+		break;
+	case WM_CTLCOLORSTATIC: //Фон для статиков
+		HDC hdsStat = (HDC)wParam;
+		SetTextColor(hdsStat, textClr);
+		SetBkMode(hdsStat, TRANSPARENT);
+		return (INT_PTR)CreateSolidBrush(RGB(202, 205, 178));
+
+	case WM_SETCURSOR: //Динамическая смена курсора
+		for (numb = 0; numb < MAP_SIZE; ++numb)
+		{
+			if ((HWND)wParam == hButt[numb])
+			{
+				if (!bAuto)
+				{
+					SetFocus(hButt[numb]);
+					switch (numb)
+						{
+						case 0: //При нажатии на кнопку определить есть ли возле нее пустое место
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyAbove = FALSE;
+							bEmptyLeft = FALSE;
+							break;
+						case 1: case 2:
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							bEmptyAbove = FALSE;
+							break;
+						case 3:
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							bEmptyAbove = FALSE;
+							bEmptyRight = FALSE;
+							break;
+						case 4: case 8:
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyLeft = FALSE;
+							break;
+						case 5: case 6: case 9: case 10:
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							break;
+						case 7: case 11:
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyUnder = field[numb + 4] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							bEmptyRight = FALSE;
+							break;
+						case 12:
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyUnder = FALSE;
+							bEmptyLeft = FALSE;
+							break;
+						case 13: case 14:
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							bEmptyRight = field[numb + 1] == 0;
+							bEmptyUnder = FALSE;
+							break;
+						case 15:
+							bEmptyAbove = field[numb - 4] == 0;
+							bEmptyLeft = field[numb - 1] == 0;
+							bEmptyRight = FALSE;
+							bEmptyUnder = FALSE;
+							break;
+						}
+				
+					if (bEmptyUnder)
+						SetCursor(cursorDown);//Set underCursor
+					else if (bEmptyAbove)
+						SetCursor(cursorUp); //Set aboveCursor
+					else if (bEmptyLeft)
+						SetCursor(cursorLeft);//Set leftCursor
+					else if (bEmptyRight)
+						SetCursor(cursorRight);//Set rightCursor
+					else
+						SetCursor(cursorOnButtonPushed);
+				}
+				return TRUE;
+			}
+		}
+		SetCursor(cursorOnButtonUsual);
+		SetFocus(hWnd);
+		return TRUE;
+    
+	case WM_DRAWITEM: //Рисование собственной кнопки и задание ее поведения при нажатии
+		/*При запуске программы сообщение WM_DRAWITEM посылается каждой кнопке
+		  В дальнейщем WM_DRAWITEM посылается, только при активности конкретной кнопки (нажатие и отжатие пользователем)*/
+		buttDraw = (LPDRAWITEMSTRUCT)lParam;
+		textClrBtn = RGB(189, 0, 0);
+		//В зависимости от действия на кнопке определить основной цвет и цвет окружности
+		switch (buttDraw->itemAction)
+		{
+			case ODA_FOCUS:
+				hbr = CreateGradientBrush(buttBkgrndTop, buttBkgrndBottom, buttDraw);
+				hbrRound = CreateGradientBrush(buttBkgrndBottom, buttBkgrndTop, buttDraw);
+				textClrBtn = RGB(80, 30, 189);
+				if (buttDraw->itemState & ODS_FOCUS)
+					textClrBtn = RGB(80, 30, 189);
+				break;
+			case ODA_SELECT:
+				if (buttDraw->itemState & ODS_SELECTED)
+				{
+					hbr = CreateGradientBrush(buttBkgrndBottom, buttBkgrndTop, buttDraw);
+					hbrRound = CreateGradientBrush(buttBkgrndTop, buttBkgrndBottom, buttDraw);
+				}
+				else
+				{
+					hbr = CreateGradientBrush(buttBkgrndTop, buttBkgrndBottom, buttDraw);
+					hbrRound = CreateGradientBrush(buttBkgrndBottom, buttBkgrndTop, buttDraw);
+				}
+				break;
+			default:
+				hbrRound = CreateGradientBrush(buttBkgrndBottom, buttBkgrndTop, buttDraw);
+				hbr = CreateGradientBrush(buttBkgrndTop, buttBkgrndBottom, buttDraw);
+				break;
+		}
+		
+		//Заполнить кнопку основным цветом
+		FillRect(buttDraw->hDC, &buttDraw->rcItem, hbr); 
+
+		//Нарисовать окружность
+		SelectObject(buttDraw->hDC, hbrRound);
+		SelectObject(buttDraw->hDC, hPenRound);
+		Ellipse(buttDraw->hDC, buttDraw->rcItem.left+15, buttDraw->rcItem.top+15,
+			    buttDraw->rcItem.right-15, buttDraw->rcItem.bottom-15);
+		
+		//Удалить кисти
+		DeleteObject(hbr);
+		DeleteObject(hbrRound);
+
+		//Отобразить текст на кнопках
+		SetTextColor(buttDraw->hDC, textClrBtn); //Цвет текста
+		SetBkMode(buttDraw->hDC, TRANSPARENT); //Фон текста
+		for (i = 0; i < BUTTONS_AMOUNT; i++)
+			if (buttDraw->hwndItem == hButt[i])
+			{
+				if (field[i] != 0)
+				{
+					sprintf(str, "%d", field[i]);
+					DrawText(buttDraw->hDC, str, strlen(str), LPRECT(&buttDraw->rcItem), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+				}
+				else
+				{
+					ShowWindow(hButt[i], SW_HIDE);
+					hideButtonIndex = i;
+				}
+			}
+
+		//Нарисовать черную рамку вокруг прямоугольника кнопки
+		FrameRect(buttDraw->hDC, &buttDraw->rcItem, (HBRUSH)GetStockObject(BLACK_BRUSH));
+		//Если отрисовка происходит во время автосборки ввести задержку
+		/*if (bAuto)
+			MessageBoxA(hWnd, "Second", "Check", MB_OK);*/
+		break;
+    
+	case WM_COMMAND: //Обработка команд, поступающих от элементов управления окна и меню
+		if (lParam == 0) //Если команда поступила от меню
+		{
+			switch (LOWORD(wParam))
+			{
+			case ID_SAVEGAME: //Сохранение игрового сеанса
+				SaveGame(field, moveCounter);
+				MessageBox(0, "Игра сохранена", "Инфо", MB_OK | MB_ICONINFORMATION);
+				break;
+        
+			case ID_LOADGAME: //Загрузка раннее сохраненного игрового сеанса
+				//Загрузить игру
+				LoadGame(field, moveCounter);
+				ShowWindow(hButt[hideButtonIndex], SW_SHOW);
+				ShowMas(hButt, field, hideButtonIndex);
+				MessageBox(hWnd, "Игра загружена", "Инфо", MB_OK | MB_ICONINFORMATION);
+				break;
+        
+			case ID_NEWGAME: //Создание новой игры
+				//I. Спросить пользователя о сохранении текущей игры
+				switch (MessageBox(hWnd, "Сохранить текущую игру?", "Внимание", MB_YESNOCANCEL | MB_ICONQUESTION))
+				{
+				case IDYES:
+					//Сохраняем игру
+					SaveGame(field, moveCounter);
+					moveCounter = 0;
+					MessageBox(hWnd, "Игра сохранена", "Инфо", MB_OK | MB_ICONINFORMATION);
+					//II. Создать новую игру
+					//1. Отобразить ранее скрытое окно
+					ShowWindow(hButt[hideButtonIndex], SW_SHOW);
+					//2. Сгенерировать новый массив и отобразить его на кнопках
+					/*GetShuffleField(field, hideButtonIndex);*/
+					GetRandomField(field, hideButtonIndex);
+					ShowMas(hButt, field, hideButtonIndex);
+					break;
+				case IDNO:
+					moveCounter = 0;
+					//II. Создать новую игру
+					//1. Отобразить ранее скрытое окно
+					ShowWindow(hButt[hideButtonIndex], SW_SHOW);
+					//2. Сгенерировать новый массив и отобразить его на кнопках 
+					
+					/*GetShuffleField(field, hideButtonIndex);*/
+					GetRandomField(field, hideButtonIndex);
+					ShowMas(hButt, field, hideButtonIndex);
+					break;
+				case IDCANCEL:
+					//Ничего не делаем
+					break;
+				}
+				break;
+        
+			case ID_ABOUT: //Вызов справки
+				//Получить путь к исполняемому файлу приложения. По этому пути лежит папка с проектом справки
+				GetModuleFileName(hInst, helpPath, 256);
+
+				/*Путь содержит имя приложения. Необходимо преобразовать его в путь до справки*/
+				/*1. Вычислить индекс с конца, в котором содержится символ "\"*/
+				for (i = strlen(helpPath) - 1; helpPath[i] != '\\'; i--);
+				/*2. Выполнить сдвиг \0 до символа "\"*/
+				for (j = strlen(helpPath); j > i; j--)
+					helpPath[j - 1] = helpPath[j];
+				/*3. Добавить имя файла справки к пути*/
+				strcat(helpPath, "\\About\\aboutRules.html");
+
+				ShellExecute(hWnd, "open", helpPath, NULL, NULL, SW_NORMAL);
+				break;
+        
+			case ID_DEMO: //Обработка меню "Демонстрация"
+				bAuto = TRUE;
+				ShowDemo(hWnd, hButt,  field, hideButtonIndex);
+				bAuto = FALSE;
+				break;
+        
+			case ID_EXIT:
+				if (MessageBox(hWnd, "Сохранить игру перед выходом?", "Внимание", MB_YESNO | MB_ICONQUESTION) == IDYES)
+					SaveGame(field, moveCounter);
+				PostQuitMessage(0);
+			}
+		}
+		else  //Если команда поступила от кнопок (при этом lParam содержит хендлер, а не null)
+		{	//Обработка нажатия кнопки-костяшки (изменение состояние игрового поля)
+			for (i = 0; i < MAP_SIZE / 4; ++i)
+			{
+				zeroIndex = numb + directions[i];
+				//Проверка допустимости хода
+				if (zeroIndex < 0 || zeroIndex >= MAP_SIZE)
+					continue;
+				if ((directions[i] == 1) && ((numb + 1) % directions[1] == 0))
+					continue;
+				if ((directions[i] == -1) && ((numb + 1) % directions[1] == 1))
+					continue;
+				bZero = field[zeroIndex] == 0;
+				if (bZero)
+				{
+					//Поменять местами значения в массиве
+					swap(field[zeroIndex], field[numb]);
+					//Зафиксировать номер скрываемой кнопки
+					hideButtonIndex = numb;
+					//Отобразить номер хода
+					moveCounter++;
+					strcpy(statStr, "\nВыполнено ходов: ");
+					sprintf(str, "%d", moveCounter);
+					strcat(statStr, str);
+					SetWindowText(hMoveStat, statStr);
+					//Поменять местами кнопки
+					ShowWindow(hButt[zeroIndex], SW_SHOW);
+					ShowWindow(hButt[hideButtonIndex], SW_HIDE);
+
+					if(IsWin(field) && !bAuto)
+						MessageBox(hWnd, "Пятнашки собраны!", "Info", MB_OK | MB_ICONINFORMATION);
+					break;
+				}
+			}
+		}
+		break;
+    
+	case WM_PAINT: //Отрисовка положения кнопок
+		hDC = BeginPaint(hWnd, &ps);
+
+		//Нарисовать коробку
+		DrawBox(hDC, hPenBox, SX, SY);
+
+		//Расположить кнопки
+		for (i = 0; i < BUTTONS_AMOUNT; i++)
+		{
+			MoveWindow(hButt[i], 
+				       ((i % 4)*((SX - (2 * BOX_BORDER + 3 * BOX_RORDER_EDGE)) / 4)) + BOX_BORDER + 2 * BOX_RORDER_EDGE, 
+				       ((i / 4)*((SY - STAT_HEIGHT - (2 * BOX_BORDER + 3 * BOX_RORDER_EDGE)) / 4)) + BOX_BORDER + 2 * BOX_RORDER_EDGE + STAT_HEIGHT, 
+				       (SX - 2 * (BOX_BORDER + 3 * BOX_RORDER_EDGE)) / 4, 
+				       (SY - STAT_HEIGHT - 2 * (BOX_BORDER + 3 * BOX_RORDER_EDGE)) / 4, TRUE);
+		}
+
+		//Расположить счестик ходов ходов
+		strcpy(statStr, "\nВыполнено ходов: ");
+		sprintf(str, "%d", moveCounter);
+		strcat(statStr, str);
+		MoveWindow(hMoveStat, 0, 0, SX, STAT_HEIGHT, TRUE);
+		SetWindowText(hMoveStat, statStr);
+
+		EndPaint(hWnd, &ps);
+		break;
+    
+	case WM_CLOSE:
+		//Получить выбор пользователя
+		//Выполнить действие в зависимости от выбора пользователя
+		switch (MessageBox(hWnd, "Сохранить игру перед выходом?", "Внимание", MB_YESNOCANCEL | MB_ICONQUESTION))
+		{
+		case IDYES:
+			//сохранить игру
+			SaveGame(field, moveCounter);
+			MessageBox(0, "Игра сохранена", "Инфо", MB_OK | MB_ICONINFORMATION);
+			DestroyWindow(hWnd); //выйти
+			break;
+		case IDCANCEL:
+			//не сохранять и не выходить
+			break;
+		case IDNO:
+			//не сохранять, а просто выйти
+			DestroyWindow(hWnd); //выйти
+			break;
+		}
+		break;
+    
+	case WM_DESTROY:
+		DeleteObject(hPenBox);
+		DeleteObject(hPenRound);
+		FreeMemory(field, MAP_SIZE);
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam); /*Обработка WM по умолчанию*/
+	}
+	return 0;
+}
