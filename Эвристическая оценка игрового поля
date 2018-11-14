@@ -1,0 +1,23 @@
+/*Характеризует степень отдаленности/приближенности текущего состояния игрового поля к терминальному
+  Выражается численно в виде значения от 0 до 50-ти*/
+
+int Field::ManhatenDistance()
+{
+	int row[] = { 3,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3 };
+	int col[] = { 3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2 };
+
+	int matrix[4][4], i, j, k = 0;
+	for (i = 0; i < MAP_SIZE / 4; i++)
+		for (j = 0; j < MAP_SIZE / 4; j++)
+			matrix[i][j] = state[k++];
+
+
+	int heuristyc = 0;
+	for (int i = 0; i < MAP_SIZE / 4; i++)
+		for (int j = 0; j < MAP_SIZE / 4; j++)
+			if (matrix[i][j] != 0)
+				heuristyc += abs(row[matrix[i][j]] - i) + abs(col[matrix[i][j]] - j);
+
+	distances = heuristyc;
+	return heuristyc;
+}
