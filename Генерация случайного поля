@@ -75,7 +75,7 @@ bool IsWinPossible(int* genField)
 			break;
 		}
 
-	!(inv & 1) ? res = true : res = false; //проверка на честность
+	!(inv & 1) ? res = true : res = false; //проверка на чётность
 
 	return res;
 }
